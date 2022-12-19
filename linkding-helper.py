@@ -1,6 +1,7 @@
 import http.client
 import json
 import os
+import sys
 
 
 class AlfredItem:
@@ -39,18 +40,25 @@ class LinkdingBookmark:
     def __init__(self, bookmark):
         self._url: str = bookmark["url"] or ""
         self._title: str = bookmark["title"] or bookmark["website_title"] or bookmark["url"]
-        self._tags: [str] = bookmark["tag_names"]
+        self._tags: [str] = list(map(lambda tag: "#%s" % tag, bookmark["tag_names"]))
 
     def to_alfred_item(self) -> AlfredItem:
         return AlfredItem(title=self._title, subtitle=self._url, arg=self._url, quicklookurl=self._url)
 
-    def matches_query(self, query: str) -> bool:
-        query = query.lower()
-        if query.strip() == "":
+    def matches_query(self, query_token: [str]) -> bool:
+        if len(query_token) == 0:
             return True
-        if self._title.lower().find(query) != -1:
+        matched = list(map(lambda token: self._matches_single_token(token), query_token))
+        return False not in matched
+
+    def _matches_single_token(self, token: str) -> bool:
+        if token.startswith("#"):
+            if token in self._tags:
+                return True
+            return False
+        if self._title.lower().find(token) != -1:
             return True
-        if self._url.lower().find(query) != -1:
+        if self._url.lower().find(token) != -1:
             return True
         return False
 
@@ -70,19 +78,21 @@ class LinkdingClient:
         return parsed
 
     def bookmarks(self, query: str) -> [LinkdingBookmark]:
+        query = query.lower()
+        query_token = query.split(' ')
         data = self._request(path="/api/bookmarks/")
         alfred_bookmark_items = []
         for row in data["results"]:
             bookmark = LinkdingBookmark(bookmark=row)
-            if bookmark.matches_query(query=query):
+            if bookmark.matches_query(query_token=query_token):
                 alfred_bookmark_items.append(bookmark)
         return alfred_bookmark_items
 
 
 if __name__ == "__main__":
-    query = "{query}"
-    token = os.environ["linkding_token"]
-    host = os.environ["linkding_host"]
-    client = LinkdingClient(host=host, token=token)
-    items = list(map(lambda v: v.to_alfred_item(), client.bookmarks(query=query)))
+    input_query = sys.argv[1] if len(sys.argv) == 2 else ""
+    env_token = os.environ["linkding_token"]
+    env_host = os.environ["linkding_host"]
+    client = LinkdingClient(host=env_host, token=env_token)
+    items = list(map(lambda v: v.to_alfred_item(), client.bookmarks(query=input_query)))
     AlfredOutputFormatter(items=items).print()
