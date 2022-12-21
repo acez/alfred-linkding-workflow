@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# linkding-helper.py
+# linkding-search.py
 # created by Christian Wilhelm
 import http.client
 import json
@@ -67,36 +67,34 @@ class LinkdingBookmark:
         return False
 
 
-class LinkdingClient:
-    def __init__(self, host: str, token: str):
-        self._host = host
-        self._token = token
-
-    def _request(self, path: str) -> {}:
-        conn = http.client.HTTPSConnection(self._host)
-        headers = {'Authorization': "Token %s" % self._token}
-        conn.request("GET", path, headers=headers)
-        res = conn.getresponse()
-        data = res.read()
-        parsed = json.loads(data)
-        return parsed
+class LocalBookmarksCacheClient:
+    def __init__(self, cache_dir: str):
+        bookmarks_cache_file = os.path.join(cache_dir, "bookmarks.json")
+        self._bookmarks = []
+        try:
+            with open(bookmarks_cache_file, mode="r") as f:
+                bookmark_list = json.loads(f.read())
+                self._bookmarks = list(map(lambda row: LinkdingBookmark(bookmark=row), bookmark_list))
+        except FileNotFoundError:
+            self._bookmarks = []
 
     def bookmarks(self, query: str) -> [LinkdingBookmark]:
         query = query.lower()
         query_token = query.split(' ')
-        data = self._request(path="/api/bookmarks/")
         alfred_bookmark_items = []
-        for row in data["results"]:
-            bookmark = LinkdingBookmark(bookmark=row)
+        for bookmark in self._bookmarks:
             if bookmark.matches_query(query_token=query_token):
                 alfred_bookmark_items.append(bookmark)
         return alfred_bookmark_items
 
 
-if __name__ == "__main__":
+def main():
     input_query = sys.argv[1] if len(sys.argv) == 2 else ""
-    env_token = os.environ["linkding_token"]
-    env_host = os.environ["linkding_host"]
-    client = LinkdingClient(host=env_host, token=env_token)
+    env_cache_dir = os.environ["alfred_workflow_cache"]
+    client = LocalBookmarksCacheClient(env_cache_dir)
     items = list(map(lambda v: v.to_alfred_item(), client.bookmarks(query=input_query)))
     AlfredOutputFormatter(items=items).print()
+
+
+if __name__ == "__main__":
+    main()
