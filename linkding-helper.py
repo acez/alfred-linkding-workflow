@@ -56,8 +56,9 @@ class LinkdingBookmark:
 
     def _matches_single_token(self, token: str) -> bool:
         if token.startswith("#"):
-            if token in self._tags:
-                return True
+            for tag in self._tags:
+                if tag.lower().find(token) != -1:
+                    return True
             return False
         if self._title.lower().find(token) != -1:
             return True
