@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# linkding-helper.py
+# created by Christian Wilhelm
 import http.client
 import json
 import os
