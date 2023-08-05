@@ -15,6 +15,7 @@ class LinkdingClient:
     def _request(self, url: str) -> {}:
         req = urllib.request.Request(url)
         req.add_header('Authorization', 'Token %s' % self._token)
+        req.add_header('User-Agent', 'Mozilla/5.0')
         r = urllib.request.urlopen(req)
         parsed = json.loads(r.read())
         return parsed
